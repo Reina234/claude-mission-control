@@ -1,6 +1,6 @@
 # Mission Control
 
-A Claude Code plugin that gives you a board of your sessions and to-dos (and any branch conflict warnings), as well as a little context health bar and inbox line above the messages in each session.
+A Claude Code plugin that gives you a board of your sessions and to-dos (and any branch conflict warnings), as well as a little context health bar and inbox line above the messages in each session. Please let me know about bugs! This has only ever been tested on Macs (specifically, my mac)
 
 ## Install
 
@@ -37,9 +37,3 @@ In a normal terminal the board opens inline above the prompt. Run
 board docks as a side panel beside the transcript instead. `/tui default`
 switches back.
 
-## macOS-only features
-
-`/enter` and the `↗ enter` button open a new **macOS Terminal** window via
-`osascript`, and desktop notifications when a background agent finishes also use
-`osascript`. On other systems those are skipped automatically; everything else
-works cross-platform.
