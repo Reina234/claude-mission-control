@@ -1,7 +1,6 @@
 # Mission Control
 
-A Claude Code plugin that gives you a board of your sessions and to-dos, a
-game-style context "health bar" above the prompt, and a "waiting on you" inbox.
+A Claude Code plugin that gives you a board of your sessions and to-dos (and any branch conflict warnings), as well as a little context health bar and inbox line above the messages in each session.
 
 ## Install
 
@@ -9,21 +8,8 @@ game-style context "health bar" above the prompt, and a "waiting on you" inbox.
 /plugin install mission-control --marketplace Reina234/claude-mission-control
 ```
 
-Say `y` to add the marketplace, pick a scope (user = all your sessions), done.
-It loads automatically in every session after that.
+Say `y` to add the marketplace, pick a scope (user = all your sessions) -> done!
 
-## What it does
-
-- **Board pane** (`/board` to toggle, **Esc** to close): your tracked sessions
-  and manual to-dos, grouped by topic. Each session shows a state emoji, a
-  one-line summary, its branch, and how long since it was last active.
-- **Context health bar** above the prompt: a green→red segmented bar scaled to a
-  200k "budget", a worry face as usage climbs (💚 💛 ❤️ 😟 😨 💀), and a 💥 burst
-  once you pass the budget. The real context limit still shows in the numbers.
-- **Inbox**: a `📥‼️ N waiting` count of other sessions that finished and are
-  waiting on you (or `🫥 no new messages`).
-- **Branch-conflict warning**: a background check that flags when your branch and
-  another local branch have changed the same files versus `main`.
 
 ## Legend
 
