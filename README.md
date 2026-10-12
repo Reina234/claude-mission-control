@@ -14,9 +14,9 @@ It loads automatically in every session after that.
 
 ## What it does
 
-- **Board pane** (`/board` to toggle): your tracked sessions and manual to-dos,
-  grouped by topic. Each session shows a state emoji, a one-line summary, its
-  branch, and how long since it was last active.
+- **Board pane** (`/board` to toggle, **Esc** to close): your tracked sessions
+  and manual to-dos, grouped by topic. Each session shows a state emoji, a
+  one-line summary, its branch, and how long since it was last active.
 - **Context health bar** above the prompt: a green→red segmented bar scaled to a
   200k "budget", a worry face as usage climbs (💚 💛 ❤️ 😟 😨 💀), and a 💥 burst
   once you pass the budget. The real context limit still shows in the numbers.
@@ -43,6 +43,13 @@ It loads automatically in every session after that.
 
 `boardTitle` — the heading shown at the top of the board (default
 "Mission Control"). Set it with `/plugin configure mission-control`.
+
+## Fullscreen
+
+In a normal terminal the board opens inline above the prompt. Run
+`/tui fullscreen` to switch Claude Code into its fullscreen layout, and the
+board docks as a side panel beside the transcript instead. `/tui default`
+switches back.
 
 ## macOS-only features
 

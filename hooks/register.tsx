@@ -13,7 +13,7 @@ const HOUR_MS = 60 * 60 * 1000
 const STALE_MS = 3 * DAY_MS
 const FORGET_MS = 30 * DAY_MS
 const UPPER_BOUND = 200_000
-const CLEAN_VERSION = 1
+const SEED_VERSION = 2
 
 const BRANCH_COLOR = '#7dd3fc'
 const AGE_COLOR = '#c4b5fd'
@@ -340,6 +340,63 @@ function statusEmoji(tokens: number): string {
   return '❤️'
 }
 
+function dummyThreads(now: number): McThread[] {
+  const here = '~/code/example-app'
+  const mk = (
+    id: string,
+    topic: string,
+    name: string,
+    branch: string,
+    tokens: number,
+    state: McThreadState,
+    ageMs: number,
+  ): McThread => ({
+    id,
+    sessionId: `dummy-${id}`,
+    topic,
+    name,
+    branch,
+    cwd: here,
+    tokens,
+    state,
+    isDone: false,
+    createdAt: now - 10 * DAY_MS,
+    lastActiveAt: now - ageMs,
+  })
+  return [
+    mk('t1', 'search', 'Add pagination to the search endpoint', 'feat/search-pagination', 128_000, 'waiting', 5 * HOUR_MS),
+    mk('t2', 'docs', 'Rewrite the getting-started guide', 'docs/getting-started', 46_000, 'working', 2 * HOUR_MS),
+    mk('t3', 'bug triage', 'Fix the flaky upload test', 'fix/flaky-upload', 72_000, 'idle', 1 * DAY_MS),
+    mk('t4', 'infra', 'Bump the CI Node version', 'chore/ci-node', 31_000, 'working', 6 * HOUR_MS),
+    mk('t5', 'refactor', 'Split the auth module', 'refactor/auth-split', 95_000, 'waiting', 35 * 60 * 1000),
+    mk('t6', 'release', 'Cut v2.1.0', 'release/2.1.0', 184_000, 'working', 10 * 60 * 1000),
+    mk('t7', 'make cool mods', 'Polish the board layout', 'feat/board-polish', 58_000, 'waiting', 20 * 60 * 1000),
+  ]
+}
+
+function dummyTasks(): McTask[] {
+  return [
+    { id: '1', text: 'Write the release notes', topic: 'release', isDone: false },
+    { id: '2', text: 'Set up permanent plugin install', topic: 'make cool mods', isDone: false },
+    { id: '3', text: 'Add a dark-mode legend', topic: 'make cool mods', isDone: false },
+  ]
+}
+
+async function openBoard($: CoreEngineInterface, fallback: string): Promise<unknown> {
+  const sessionId = await $.session.id().catch(() => '')
+  const list = await read($, threads)
+  const name = (list.find(thread => thread.sessionId === sessionId)?.name ?? '').trim()
+  const titleText = name.length > 0 ? name : fallback
+  return $.ui.open({
+    id: PANE,
+    title: titleText,
+    rows: 22,
+    columns: 96,
+    focus: true,
+    closeOnEscape: true,
+  })
+}
+
 export const register: Register = (on, options) => {
   let firstPrompt = true
   let boardOpen = false
@@ -362,20 +419,21 @@ export const register: Register = (on, options) => {
 
     isMac = await detectMac($).catch(() => false)
 
-    void $.ui.open({ id: PANE, title })
+    void openBoard($, title)
     boardOpen = true
     await loadStore($).catch(() => undefined)
 
-    const cleaned = (await $.store.get('cleanVersion')) as number | undefined
-    if (cleaned !== CLEAN_VERSION) {
-      await writeThreads($, () => []).catch(() => undefined)
-      await writeTasks($, () => []).catch(() => undefined)
+    const now = await $.clock.now()
+    const seeded = (await $.store.get('seedVersion')) as number | undefined
+    const existing = await read($, threads)
+    if (existing.length === 0 || seeded !== SEED_VERSION) {
+      await writeThreads($, () => dummyThreads(now)).catch(() => undefined)
+      await writeTasks($, () => dummyTasks()).catch(() => undefined)
       await writeDoneTopics($, () => []).catch(() => undefined)
       await writeCollapsedTopics($, () => []).catch(() => undefined)
-      await $.store.set('cleanVersion', CLEAN_VERSION).catch(() => undefined)
+      await $.store.set('seedVersion', SEED_VERSION).catch(() => undefined)
     }
 
-    const now = await $.clock.now()
     const sessionId = await $.session.id().catch(() => '')
     const branch = await currentBranch($).catch(() => '(no branch)')
     const cwd = await $.session.cwd().catch(() => '')
@@ -425,8 +483,13 @@ export const register: Register = (on, options) => {
       return { text: `${title} closed.` }
     }
     boardOpen = true
-    await $.ui.open({ id: PANE, title })
+    await openBoard($, title)
     return { text: `${title} opened.` }
+  })
+
+  on('ui.close', { id: PANE }, async ($, e, next) => {
+    boardOpen = false
+    return next(e)
   })
 
   on('command.run', { command: 'task' }, async ($, e) => {
@@ -440,7 +503,7 @@ export const register: Register = (on, options) => {
 
     await writeTasks($, list => [...list, { id: nextTaskId(list), text, topic, isDone: false }])
     boardOpen = true
-    await $.ui.open({ id: PANE, title })
+    await openBoard($, title)
     return { text: `Added to "${topic}".` }
   })
 
@@ -541,7 +604,9 @@ export const register: Register = (on, options) => {
     if (usage === null) return next(e)
 
     const { Box, Text } = $.ui.resolve(e)
-    const used = usage.context.tokens ?? 0
+    const rawTokens = usage.context.tokens
+    const measuring = rawTokens === undefined
+    const used = rawTokens ?? 0
     const limit = usage.context.window ?? 1_000_000
     const percent = clampPct((used / UPPER_BOUND) * 100)
     const over = used > UPPER_BOUND
@@ -564,14 +629,20 @@ export const register: Register = (on, options) => {
         ) : (
           <Text dimColor>{`🫥 no new messages    `}</Text>
         )}
-        <Text>{`${statusEmoji(used)} `}</Text>
-        {barCells(percent, BAR_WIDTH, over ? '#ef4444' : undefined).map((cell, i) => (
-          <Text key={`ap-${i}`} color={cell.color} dimColor={cell.dim}>
-            {cell.char}
-          </Text>
-        ))}
-        {over && <Text>{'💥'}</Text>}
-        <Text dimColor>{`  ${fmtTokens(used)} / ${fmtTokens(limit)}`}</Text>
+        <Text>{`${measuring ? '🩺' : statusEmoji(used)} `}</Text>
+        {measuring
+          ? Array.from({ length: BAR_WIDTH }).map((_, i) => (
+              <Text key={`ap-${i}`} dimColor>
+                {'▱'}
+              </Text>
+            ))
+          : barCells(percent, BAR_WIDTH, over ? '#ef4444' : undefined).map((cell, i) => (
+              <Text key={`ap-${i}`} color={cell.color} dimColor={cell.dim}>
+                {cell.char}
+              </Text>
+            ))}
+        {!measuring && over && <Text>{'💥'}</Text>}
+        <Text dimColor>{measuring ? '  measuring…' : `  ${fmtTokens(used)} / ${fmtTokens(limit)}`}</Text>
         <Text>{' '}</Text>
       </Box>
     )
@@ -595,6 +666,7 @@ export const register: Register = (on, options) => {
         <Box justifyContent="flex-end">
           <Button
             plain
+            role="dismiss"
             key="board-close"
             label={'✕ close'}
             onPress={() => {
@@ -606,6 +678,7 @@ export const register: Register = (on, options) => {
         <Box justifyContent="center">
           <Text bold>{banner}</Text>
         </Box>
+        <Text dimColor>{LEGEND}</Text>
         <Text> </Text>
         <Text bold>{'Open tasks:'}</Text>
         <Box flexDirection="column">
@@ -723,8 +796,6 @@ export const register: Register = (on, options) => {
             </Box>
           )}
         </Box>
-        <Text> </Text>
-        <Text dimColor>{LEGEND}</Text>
       </Box>
     )
   })
