@@ -1,0 +1,12 @@
+{
+  "name": "reina-mods",
+  "owner": {
+    "name": "Reina"
+  },
+  "plugins": [
+    {
+      "name": "mission-control",
+      "source": "."
+    }
+  ]
+}

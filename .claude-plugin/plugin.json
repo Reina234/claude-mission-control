@@ -1,0 +1,14 @@
+{
+  "name": "mission-control",
+  "version": "0.1.0",
+  "description": "A board of your Claude Code sessions and to-dos grouped by topic, a game-style context health bar above the prompt, a waiting-on-you inbox, and a background branch-conflict warning.",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "boardTitle": {
+      "title": "Board heading",
+      "type": "string",
+      "description": "Heading shown at the top of the board",
+      "default": "Mission Control"
+    }
+  }
+}
